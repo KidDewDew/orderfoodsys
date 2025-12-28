@@ -3,23 +3,10 @@
 <html lang="zh-cn">
 <head>
 	<title>点餐页面</title>
-	<link rel="stylesheet" type="text/css" href="/static/base.css">
 	<link rel="stylesheet" type="text/css" href="/static/shop.css">
+	<link rel="stylesheet" type="text/css" href="/static/base.css">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<style>
-		.overlay {   /*遮罩层*/
-			position:absolute;
-			top:0;left:0;
-			width:100%;height:100%;
-			z-index:-1;
-			opacity: 0.0;
-			transition: opacity 0.3s;
-			background: grey;
-		}
-		.overlay[show] {
-			opacity: 0.3;
-			z-index: 1000;
-		}
 		.bottom_popup {  /*底部弹窗*/
 			position: fixed;
 			bottom: -40vh;
@@ -35,6 +22,19 @@
 			border-top-right-radius: 20px;
 			box-shadow: 0 -3px 12px rgba(0.4,0.4,0.4,0.2);
 			visibility:hidden;
+		}
+		.overlay {   /*遮罩层*/
+			position:absolute;
+			top:0;left:0;
+			width:100%;height:100%;
+			z-index:-1;
+			opacity: 0.0;
+			transition: opacity 0.3s;
+			background: grey;
+		}
+		.overlay[show] {
+			opacity: 0.3;
+			z-index: 1000;
 		}
 		.bottom_popup[show] {
 			visibility:visible;
@@ -692,6 +692,29 @@
 			}
 		});
 	}
+
+	
+	// 修改剩余数量确认对话框
+	function changeRestNumConfirm(item_id) {
+		doInput("新的剩余数量", function(newNum) {
+			const num = parseInt(newNum);
+			if (isNaN(num) || num < 0) {
+				alert("请输入有效的数字");
+				return;
+			}
+			const currentNum = latest_saved_items[item_id].rest_num;
+			const changeAmount = num - currentNum;
+			if (changeAmount == 0) {
+				alert("数量没有变化");
+				return;
+			}
+			need_toAddRestNum[item_id] = changeAmount;
+			changeRestNum(); // 立即提交
+			setTimeout(function() {
+				updateItems(); // 刷新列表
+			}, 500);
+		});
+	}
 	
 	function submit_changeItemImage() {
 		if (!current_change_image_item_id) return;
@@ -720,27 +743,6 @@
 		xhr.send(formData);
 	}
 	
-	// 修改剩余数量确认对话框
-	function changeRestNumConfirm(item_id) {
-		doInput("新的剩余数量", function(newNum) {
-			const num = parseInt(newNum);
-			if (isNaN(num) || num < 0) {
-				alert("请输入有效的数字");
-				return;
-			}
-			const currentNum = latest_saved_items[item_id].rest_num;
-			const changeAmount = num - currentNum;
-			if (changeAmount == 0) {
-				alert("数量没有变化");
-				return;
-			}
-			need_toAddRestNum[item_id] = changeAmount;
-			changeRestNum(); // 立即提交
-			setTimeout(function() {
-				updateItems(); // 刷新列表
-			}, 500);
-		});
-	}
 	{% endif %}
 </script>
 

@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+	<title>点餐页面</title>
+	<link rel="stylesheet" type="text/css" href="/static/base.css">
+	<link rel="stylesheet" type="text/css" href="/static/shop.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		.overlay {   /*遮罩层*/
+			position:absolute;
+			top:0;left:0;
+			width:100%;height:100%;
+			z-index:-1;
+			opacity: 0.0;
+			transition: opacity 0.3s;
+			background: grey;
+		}
+		.overlay[show] {
+			opacity: 0.3;
+			z-index: 1000;
+		}
+		.bottom_popup {  /*底部弹窗*/
+			position: fixed;
+			bottom: -40vh;
+			left: 0;
+			width: 100%;
+			height: 40vh;
+			padding: 6pt 12pt;
+			box-sizing: border-box;
+			transition: transform 0.5s;
+			z-index: -1;
+			background: white;
+			border-top-left-radius: 20px;
+			border-top-right-radius: 20px;
+			box-shadow: 0 -3px 12px rgba(0.4,0.4,0.4,0.2);
+			visibility:hidden;
+		}
+		.bottom_popup[show] {
+			visibility:visible;
+			transform: translate(0px,-100%);
+			z-index: 1001;
+		}
+		
+	</style>
+</head>
+<body>
+	<div class="mobile_page">
+		<div class="topBar">
+			<div></div>
+			<div class="title">
+				{% if isShopper %}
+				<div style="font-size:0.9rem;color:#8F8F8F;">店名:</div>
+				{% endif %}
+				<span id="shop_name_display">{{shop_name}}</span>
+				{% if isShopper %}
+				<img src="/static/image/icon_write.png" class="img_button" onclick="editShopName()" style="cursor:pointer;" title="编辑店铺名称">
+				{% endif %}
+			</div>
+			<div id="statusText" class="tip_text"></div>
+		</div>
+		<div id="item_area" class="scrollview">
+			
+		</div>
+		<div class="bottomBar">
+			{%if isShopper %}
+			<button class="link_button" onclick="window.location.href='/my_orders'">订单列表</button>
+			<button class="accent_button" onclick="addItem()">创建餐品</button>
+			<button class="accent_button" onclick="showShopSettings()">店铺设置</button>
+			{%else%}
+			<button class="link_button" onclick="window.location.href='/my_orders'">
+			我的订单</button>
+			<button class="accent_button" onclick="showConfirmOrderPopup();//do_post_order()">我选好了</button>
+			{%endif%}
+		</div>
+	</div>
+	
+	<dialog id="dialog_createItem">
+		<form id="form_createItem" class="box_2col">
+			<div class="grid_2col_title"> 
+				●○●○ 创建新餐品 ●○●○
+			</div>
+			<label>餐品名称</label>
+			<input name="item_name" placeholder="输入餐品的名称" required>
+			<label>餐品图片</label>
+			<input id="input_image" type="file" id="file" name="images" accept="image/*">
+			<div></div>
+			<img id="item_image" style="width:4.5rem;height:4.5rem">
+			<label>价格</label>
+			<input name="price" placeholder="输入价格，如：5.0、3.5" required>
+			<button type="button" onclick="dialog_createItem.close()">取消</button>
+			<button type="button" 
+				onclick="dialog_createItem.close();submit_createItem()">确认提交</button>
+		</form>
+	</dialog>
+	
+	<dialog id="dialog_inputany">
+		<div class="box_2col">
+			<div id="inputany_title" class="grid_2col_title"> 
+			</div>
+			<div id="inputany_label"></div>
+			<input id="inputany_input">
+			<button type="button" onclick="dialog_inputany.close();">取消</button>
+			<button type="button" onclick="dialog_inputany.close();do_callback_inputany()">提交</button>
+		</div>
+	</dialog>
+	
+	<dialog id="dialog_changeItemImage">
+		<form id="form_changeItemImage" class="box_2col">
+			<div class="grid_2col_title"> 
+				●○●○ 修改商品图片 ●○●○
+			</div>
+			<label>选择新图片</label>
+			<input id="input_change_image" type="file" name="image" accept="image/*">
+			<div></div>
+			<img id="change_item_image_preview" style="width:6rem;height:6rem;object-fit:cover;border:1px solid var(--border);border-radius:4px;">
+			<div style="grid-column:span 2;">
+				<button type="button" onclick="dialog_changeItemImage.close()">取消</button>
+				<button type="button" onclick="dialog_changeItemImage.close();submit_changeItemImage()">确认修改</button>
+			</div>
+		</form>
+	</dialog>
+	
+	<dialog id="dialog_shopSettings">
+		<div class="box_2col">
+			<div class="grid_2col_title"> 
+				●○●○ 店铺设置 ●○●○
+			</div>
+			<label>店铺名称</label>
+			<input id="input_shop_name" value="{{shop_name}}">
+			<div style="grid-column:span 2;">
+				<button type="button" onclick="dialog_shopSettings.close()">取消</button>
+				<button type="button" onclick="submit_shopName()">保存修改</button>
+			</div>
+		</div>
+	</dialog>
+	
+	<div id="overlay" class="overlay" onclick="hideConfirmOrderPopup();"></div> <!--遮罩层，配合底部对话框使用-->
+	
+	<div id="confirm_order_popup" class="bottom_popup">
+		<div style="text-align:center;margin-bottom:5pt;">确认订单</div>
+		<div style="margin:4pt 2pt;border-bottom:1px solid #444;"></div>
+		<div style="height:70%;">
+			<div class="tip_text" style="float:left;font-size:0.9rem;">购买列表</div>
+			<div id="buy_list" style="float:right;width:75%;max-height:100%;overflow-y:auto;">
+				
+			</div>
+		</div>
+		<div style="clear:both;margin:2pt 2pt;border-bottom:1px solid #444;"></div>
+		<div style="margin:6pt auto; width:fit-content;">
+			<span id="sum_price">总计12.6元&nbsp;</span>
+			<button style="display:inline-block" onclick="do_post_order();hideConfirmOrderPopup();"> 付款 </button>
+		</div>
+	</div>
+	
+</body>
+
+<script>
+
+	var itemarea = document.getElementById("item_area")
+	var statusText = document.getElementById("statusText")
+	var dialog_createItem = document.getElementById("dialog_createItem")
+	var input_image = document.getElementById("input_image");
+	
+	var dialog_inputany = document.getElementById("dialog_inputany");
+	var inputany_title = document.getElementById("inputany_title");
+	var inputany_input = document.getElementById("inputany_input");
+	var inputany_label = document.getElementById("inputany_label");
+	
+	var do_callback_inputany;
+	
+	var need_toAddRestNum = {};   //存储需要修改剩余数量的值
+	
+	var latest_saved_items = {};  //最近一次获取的商品列表，不允许做修改
+	
+	const popup_confirm_order = document.getElementById("confirm_order_popup");
+	const overlay = document.getElementById("overlay")
+	
+	const buy_list_ele = document.getElementById("buy_list");
+	
+	function showConfirmOrderPopup() {
+		let isOrderEmpty = true;
+		let sum_price = 0.0;
+		buy_list.innerHTML = "";
+		for(let item_id in item_selected_num) {
+			if(item_selected_num[item_id] != 0) {
+				isOrderEmpty = false;
+				const item = latest_saved_items[item_id];
+				const num = item_selected_num[item_id];
+				const ele = document.createElement("div");
+				ele.className = "item_item2";
+				ele.innerHTML = `<div style='font-size:0.8rem;white-space:nowrap;'>${item.item_name}
+									<span style='color:blue;font-size:1.0rem'>*${num}</span></div>
+								<div></div>
+								<div style='white-space:nowrap;'>${item.price * num}元</div>`;
+				buy_list_ele.appendChild(ele);
+				sum_price += num * item.price;
+			}
+		}
+		
+		document.getElementById("sum_price").innerHTML = "总计"+sum_price+"元&nbsp;";
+		
+		if(isOrderEmpty) {
+			alert("订单不能为空，再看看点什么吧！")
+			return;
+		}
+		popup_confirm_order.setAttribute("show","");
+		overlay.setAttribute("show","");
+	}
+	
+	function hideConfirmOrderPopup() {
+		popup_confirm_order.removeAttribute("show");
+		overlay.removeAttribute("show");
+	}
+	
+	function doInput(labelName,callback) {
+		inputany_label.innerHTML = labelName;
+		inputany_title.innerHTML = "请输入" + labelName + ":"
+		do_callback_inputany = function() {
+			callback(inputany_input.value);
+		}
+		dialog_inputany.showModal();
+	}
+	
+	var itemid_element = {} //记录item_id到item元素的映射
+	{%if not isShopper %}
+	var item_selected_num = {} //记录当前用户购物车: item_id->num
+	{%endif%}
+	
+	
+	{%if isShopper %}
+	function changePreviewImage(e) {
+		const files = e.target.files;
+		const img = document.getElementById("item_image");
+		if(files.length == 0) img.src = "";
+		else {
+			img.src = URL.createObjectURL(files[0]);
+		}
+	}
+	
+	input_image.addEventListener('change',changePreviewImage);
+	
+	// 把对剩余数量的修改告诉后端
+	// 为了避免每次点击+/-都发送请求，请每隔一段时间、按需调用该函数
+	function changeRestNum() {
+		let needToChanged = false; //是否需要修改
+		for(let item_id in need_toAddRestNum) {
+			if(need_toAddRestNum[item_id] != 0) {
+				needToChanged = true;
+				break;
+			}
+		}
+		if( ! needToChanged) return; //没有修改任务
+		
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST","/shop/{{shop_id}}/changeRestNum",true)
+		xhr.setRequestHeader("Content-Type", "application/json");
+		
+		xhr.onreadystatechange = function() {}
+		
+		xhr.send(JSON.stringify(need_toAddRestNum))
+		
+		need_toAddRestNum = {} //清空
+		
+	}
+
+	//do_add/sub: 商家修改餐品数量
+	function do_add(item_id) {
+		if(!(item_id in need_toAddRestNum)) {
+			need_toAddRestNum[item_id] = 0;
+		}
+		++ need_toAddRestNum[item_id];
+		const ori = latest_saved_items[item_id].rest_num;
+		document.getElementById(`${item_id}_rest_num_2`)
+				.innerHTML = `${ori}->${need_toAddRestNum[item_id]+ori}`;
+	}
+	function do_sub(item_id) {
+		if(!(item_id in need_toAddRestNum)) {
+			need_toAddRestNum[item_id] = 0;
+		}
+		-- need_toAddRestNum[item_id];
+		const ori = latest_saved_items[item_id].rest_num;
+		document.getElementById(`${item_id}_rest_num_2`)
+				.innerHTML = `${ori}->${need_toAddRestNum[item_id]+ori}`;
+	}
+	{%else%} //do_add/sub: 顾客选餐
+	function do_add(item_id) {
+		if(!(item_id in item_selected_num)) {
+			item_selected_num[item_id] = 0;
+		}
+		if(item_selected_num[item_id] + 1 > latest_saved_items[item_id].rest_num) {
+			document.getElementById(`${item_id}_selected_num`)
+				.innerHTML = `${item_selected_num[item_id]}(max)`;
+			return;
+		}
+		++ item_selected_num[item_id];
+		document.getElementById(`${item_id}_selected_num`)
+				.innerHTML = `${item_selected_num[item_id]}`;
+	}
+	function do_sub(item_id) {
+		if(!(item_id in item_selected_num)) {
+			item_selected_num[item_id] = 0;
+		}
+		if(item_selected_num[item_id] > 0) {
+			-- item_selected_num[item_id];
+			document.getElementById(`${item_id}_selected_num`)
+					.innerHTML = `${item_selected_num[item_id]}`;
+		}
+	}
+	
+	// 顾客上传订单
+	function do_post_order() {
+		let isOrderEmpty = true;
+		let buy_items = {}
+		for(let item_id in item_selected_num) {
+			if(item_selected_num[item_id] != 0) {
+				isOrderEmpty = false;
+				buy_items[item_id] = item_selected_num[item_id];
+			}
+		}
+		if(isOrderEmpty) {
+			alert("订单不能为空，再看看点什么吧！")
+			return;
+		}
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST","/shop/{{shop_id}}/create_pay",true)
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == XMLHttpRequest.DONE) {
+				if (xhr.status == 200) {
+					const response = JSON.parse(xhr.responseText);
+					//清除order
+					for(let item_id in item_selected_num) {
+						item_selected_num[item_id] = 0;
+					}
+					// 显示支付选择对话框
+					showPaymentDialog(response["pay_url"], response["out_trade_no"]);
+				} else {
+					const response = JSON.parse(xhr.responseText);
+					alert("下单失败："+response["errorMsg"])
+				}
+			}
+		}
+		xhr.send(JSON.stringify(buy_items));
+	}
+	
+	// 显示支付对话框
+	function showPaymentDialog(pay_url, out_trade_no) {
+		const dialog = document.createElement('dialog');
+		dialog.id = 'payment_dialog';
+		dialog.style.cssText = 'padding:2rem;border-radius:12px;border:2px solid var(--border);width:75vw';
+		dialog.innerHTML = `
+			<div style="text-align:center;margin-bottom:1.5rem;">
+				<div style="font-size:1.2rem;font-weight:600;color:#6E5B1D;margin-bottom:0.5rem;">选择支付方式</div>
+				<div style="font-size:0.9rem;color:#666;">请选择支付方式完成订单</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.75rem;">
+				<button class="accent_button" onclick="window.location.href='${pay_url}'" style="width:100%;padding:0.75rem;">
+					前往支付宝支付
+				</button>
+				<button class="accent_button" onclick="simulatePaySuccess('${out_trade_no}')" 
+					style="width:100%;padding:0.75rem;background:linear-gradient(135deg, #4CAF50 0%, #45a049 100%);border:none;">
+					✅ 模拟支付成功（测试用）
+				</button>
+				<button class="link_button" onclick="document.getElementById('payment_dialog').close()" 
+					style="text-align:center;padding:0.5rem;">
+					取消
+				</button>
+			</div>
+		`;
+		document.body.appendChild(dialog);
+		dialog.showModal();
+	}
+	
+	// 模拟支付成功
+	function simulatePaySuccess(out_trade_no) {
+		const formData = new FormData();
+		formData.append("out_trade_no", out_trade_no);
+		
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST", "/pay/simulate_pay_success", true);
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				if (xhr.status == 200) {
+					const response = JSON.parse(xhr.responseText);
+					document.getElementById('payment_dialog').close();
+					alert("支付成功！订单已创建，可以在\"我的订单\"查看");
+					// 刷新页面
+					window.location.reload();
+				} else {
+					const response = JSON.parse(xhr.responseText);
+					alert("支付失败：" + response["errorMsg"]);
+				}
+			}
+		};
+		xhr.send(formData);
+	}
+	
+	function do_post_order_testSkipPay() {
+		let isOrderEmpty = true;
+		for(let item_id in item_selected_num) {
+			if(item_selected_num[item_id] != 0) {
+				isOrderEmpty = false;
+				break;
+			}
+		}
+		if(isOrderEmpty) {
+			alert("订单不能为空，再看看点些什么吧！")
+			return;
+		}
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST","/shop/{{shop_id}}/test_order_skipPay",true)
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == XMLHttpRequest.DONE) {
+				if (xhr.status == 200) {
+					//清除order
+					for(let item_id in item_selected_num) {
+						item_selected_num[item_id] = 0;
+					}
+					alert("免支付下单成功，可以在\"我的订单\"查看订单")
+				} else {
+					const response = JSON.parse(xhr.responseText);
+					alert("下单失败："+response["errorMsg"])
+				}
+			}
+		}
+		xhr.send(JSON.stringify(item_selected_num));
+	}
+	
+	{%endif%}
+
+	function do_changePrice(item_id,price_str) {
+		console.log(item_id,"price->",price_str);
+		
+		const val = parseFloat(price_str);
+		
+		if(isNaN(val)) {
+			alert("请输入正确的数值")
+			return
+		}
+		
+		if(val > 1000 || val < 0) {
+			alert("无效价格");
+			return
+		}
+		
+		const xhr = new XMLHttpRequest();
+		xhr.open("GET","/shop/{{shop_id}}/changeItemPrice?price="+price_str+"&item_id="+item_id,true)
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				document.getElementById(`${item_id}_rest_num`)
+				.innerHTML += "->"+price_str;
+			} else {
+				const response = JSON.parse(xhr.responseText);
+				alert(response["errorMsg"])
+			}
+		}
+		xhr.send()
+	}
+
+	// 根据item json数据更新item_element元素
+	function updateItem(item_element,item) {
+		if(item_element.children.length == 0) { //第一次创建该item_element
+		
+		const s_cgprice = ""
+		
+		item_element.innerHTML = 
+		`
+			<img class="item_image" src="/api/get_item_cover/${item.item_id}">
+			{%if not isShopper %}
+			<div class="item_right">
+			{% else %}
+			<div class="item_right" style="height:5rem">
+			{% endif %}
+				<div id="${item.item_id}_item_name" class="item_name">${item.item_name}</div>
+				{%if isShopper %}
+				<div id="${item.item_id}_rest_num" class="item_rest_num">剩余${item.rest_num}份 ￥${item.price}</div>
+				{%else%}
+				<div id="${item.item_id}_rest_num" class="item_rest_num">剩余${item.rest_num}份</div>
+				{%endif%}
+				{%if isShopper %}
+				<div class="row">
+					<div style="font-size:0.7rem;">修改价格：￥</div>
+					<input id="${item.item_id}_new_price" style="width:3rem;" value="${item.price}">
+					<button type="button" style="font-size:0.7rem;width:2.4rem;padding-left:3pt;padding-right:3pt"
+						onclick="do_changePrice(${item.item_id},document.getElementById('${item.item_id}'+'_new_price').value)">
+						提交</button>
+				</div>
+				{%else%}
+				<div class="item_price">￥${item.price}</div>
+				{%endif%}
+			</div>
+			{%if not isShopper %}
+			<div style="flex-grow:1"></div>
+			{% endif %}
+			<div class="row">
+				<button class="round_button" onclick="do_add(${item.item_id})">+</button>
+					
+				<div style="display:flex;gap:2pt;align-items:end;">
+					{%if isShopper %}
+					<div>
+						<span style='font-size:0.7rem'>剩余</span>
+						<div id="${item.item_id}_rest_num_2">${item.rest_num}</div>
+					</div>
+					{%else%}
+					<div id="${item.item_id}_selected_num">${item_selected_num[item.item_id]}</div>
+					{%endif%}
+					<div style="font-size:0.7rem;color:grey">份</div>
+				</div>
+				<button class="round_button" onclick="do_sub(${item.item_id})">-</button>
+				{%if isShopper %}
+				<div class="row" style="gap:2pt;flex-wrap:wrap;">
+					<button class="link_button" style="font-size:0.8rem"
+						onclick="changeRestNumConfirm(${item.item_id})">修改剩余数量</button>
+					<button class="link_button" style="font-size:0.8rem"
+						onclick="deleteItem(${item.item_id})">删除</button>
+					<button class="link_button" style="font-size:0.8rem"
+						onclick="changeItemImage(${item.item_id})">修改图片</button>
+				</div>
+				{%endif%}
+			</div>
+		`
+		} else { //已经创建了结构，只需要更新
+			document.getElementById(`${item.item_id}_item_name`)
+				.innerHTML = item.item_name;
+			{% if not isShopper %}
+			document.getElementById(`${item.item_id}_rest_num`)
+				.innerHTML = `剩余${item.rest_num}`;
+			{% else %}
+			document.getElementById(`${item.item_id}_rest_num`)
+				.innerHTML = `剩余${item.rest_num}份 ￥${item.price}`;
+			{% endif %}
+			{%if isShopper %}
+			document.getElementById(`${item.item_id}_rest_num_2`)
+				.innerHTML = `${item.rest_num}`;
+			{%endif%}
+		}
+	}
+
+	// 更新一次商品列表
+	function updateItems() {
+		statusText.innerHTML = "正在更新列表..."
+		const xhr = new XMLHttpRequest();
+		xhr.open("GET","/shop/{{shop_id}}/get_items",true)
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				const json = JSON.parse(xhr.responseText);
+				if (xhr.status == 200) {
+					statusText.innerHTML = ""
+					console.log("get_items: ",json);
+					for(const item of json) {
+						latest_saved_items[item.item_id] = item //记录item
+						if(item.item_id in itemid_element) {
+							//列表中已经存在
+							updateItem(itemid_element[item.item_id],item);
+						} else {
+							//需要添加到末尾
+							item_element = document.createElement("div")
+							item_element.className = "item"
+							itemarea.appendChild(item_element)
+							{% if not isShopper%}
+							item_selected_num[item.item_id] = 0;
+							{% else %}
+							item_element.style = 
+								`height:auto;flex-wrap:wrap;
+								align-content:space-around;
+								align-items:center;`
+							{% endif %}
+							updateItem(item_element,item)
+							//记录
+							itemid_element[item.item_id] = item_element
+						}
+					}
+				} else {
+					statusText.innerHTML = "获取列表失败"
+				}
+			}
+		};
+		xhr.send();	
+	}
+	
+	function addItem() {
+		dialog_createItem.showModal();
+	}
+	
+	{% if isShopper %}
+	// 提交创建的餐品
+	function submit_createItem() {
+		const xhr = new XMLHttpRequest();
+		const form = new FormData(document.getElementById('form_createItem'))
+		xhr.open("POST","/shop/{{shop_id}}/add_item",true)
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				const response = JSON.parse(xhr.responseText);
+				if (xhr.status == 200) {
+					//上传成功，等待自动刷新商品列表即可。
+				} else {
+					alert('上传失败：' + response['errorMsg']);
+				}
+			}
+		}
+		xhr.send(form)
+	}
+	{% endif %}
+	
+	{% if isShopper %}
+	// 删除一件商品
+	function deleteItem(item_id) {
+		//从列表中删除
+		if(item_id in itemid_element) {
+			let element = itemid_element[item_id]
+			element.remove()
+			delete itemid_element[item_id]
+			const xhr = new XMLHttpRequest();
+			xhr.open("GET","/shop/{{shop_id}}/deleteItem?item_id="+item_id,true)
+			xhr.onreadystatechange = function() {
+				if (xhr.readyState === XMLHttpRequest.DONE) {
+					const response = JSON.parse(xhr.responseText);
+					if (xhr.status == 200) {
+						//删除成功
+					} else {
+						alert('删除失败：' + response['errorMsg']);
+					}
+				}
+			}
+			xhr.send()
+		}
+	}
+	{% endif %}
+	
+	setInterval(updateItems,6000) // 6秒更新一次当前餐品
+	
+	updateItems() //立即获取商品列表
+	
+	setInterval(changeRestNum,2000) //2秒提交一次数量修改(如果需要修改的话)
+	
+	{% if isShopper %}
+	var current_change_image_item_id = null;
+	var dialog_changeItemImage = document.getElementById("dialog_changeItemImage");
+	var input_change_image = document.getElementById("input_change_image");
+	var change_item_image_preview = document.getElementById("change_item_image_preview");
+	var dialog_shopSettings = document.getElementById("dialog_shopSettings");
+	
+	// 修改店铺名称
+	function editShopName() {
+		dialog_shopSettings.showModal();
+	}
+	
+	function showShopSettings() {
+		editShopName();
+	}
+	
+	function submit_shopName() {
+		const newName = document.getElementById("input_shop_name").value.trim();
+		if (!newName) {
+			alert("店铺名称不能为空");
+			return;
+		}
+		const formData = new FormData();
+		formData.append("shop_name", newName);
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST", "/shop/{{shop_id}}/changeShopName", true);
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				if (xhr.status == 200) {
+					document.getElementById("shop_name_display").innerHTML = newName;
+					dialog_shopSettings.close();
+					alert("修改成功");
+				} else {
+					const response = JSON.parse(xhr.responseText);
+					alert("修改失败：" + response["errorMsg"]);
+				}
+			}
+		};
+		xhr.send(formData);
+	}
+	
+	// 修改商品图片
+	function changeItemImage(item_id) {
+		current_change_image_item_id = item_id;
+		input_change_image.value = "";
+		change_item_image_preview.src = "";
+		dialog_changeItemImage.showModal();
+	}
+	
+	if (input_change_image) {
+		input_change_image.addEventListener('change', function(e) {
+			const files = e.target.files;
+			if(files.length == 0) {
+				change_item_image_preview.src = "";
+			} else {
+				change_item_image_preview.src = URL.createObjectURL(files[0]);
+			}
+		});
+	}
+	
+	function submit_changeItemImage() {
+		if (!current_change_image_item_id) return;
+		const file = input_change_image.files[0];
+		if (!file) {
+			alert("请选择图片");
+			return;
+		}
+		const formData = new FormData();
+		formData.append("item_id", current_change_image_item_id);
+		formData.append("image", file);
+		const xhr = new XMLHttpRequest();
+		xhr.open("POST", "/shop/{{shop_id}}/changeItemImage", true);
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				if (xhr.status == 200) {
+					alert("修改成功，页面将刷新");
+					// 刷新商品列表
+					updateItems();
+				} else {
+					const response = JSON.parse(xhr.responseText);
+					alert("修改失败：" + response["errorMsg"]);
+				}
+			}
+		};
+		xhr.send(formData);
+	}
+	
+	// 修改剩余数量确认对话框
+	function changeRestNumConfirm(item_id) {
+		doInput("新的剩余数量", function(newNum) {
+			const num = parseInt(newNum);
+			if (isNaN(num) || num < 0) {
+				alert("请输入有效的数字");
+				return;
+			}
+			const currentNum = latest_saved_items[item_id].rest_num;
+			const changeAmount = num - currentNum;
+			if (changeAmount == 0) {
+				alert("数量没有变化");
+				return;
+			}
+			need_toAddRestNum[item_id] = changeAmount;
+			changeRestNum(); // 立即提交
+			setTimeout(function() {
+				updateItems(); // 刷新列表
+			}, 500);
+		});
+	}
+	{% endif %}
+</script>
+
+</html>

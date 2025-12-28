@@ -1,0 +1,96 @@
+
+/* 店铺列表样式已在shoplist.html中定义 */
+
+.item {
+	background: white;
+	display: flex;
+	min-height: 3.5rem;
+	margin: 0.5rem 0.5rem;
+	padding: 0.75rem;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+	transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	border-radius: 4px;
+	border: 1px solid #F0F0F0;
+	position: relative;
+}
+
+.item:hover {
+	box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+	transform: translateY(-2px);
+	border-color: #FFE0CC;
+}
+
+.item::after {
+	content: '';
+	width: 100%;
+	height: 0.3pt;
+	position: absolute;
+	left: 0;
+	bottom: 4pt;
+	background: #D1BA51;
+}
+
+.item_image {
+	width: 4rem;
+	height: 4rem;
+	min-width: 4rem;
+	margin-right: 0.75rem;
+	border-radius: 10px;
+	object-fit: cover;
+	border: 2px solid #F5F5F5;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.item_right {
+	display: flex;
+	flex-direction: column;
+	gap: 1pt;
+	min-width: 0;
+}
+
+.item_name {
+	font-weight: 600;
+	color: #333;
+	font-size: 1.05rem;
+	line-height: 1.4;
+}
+
+.item_rest_num {
+	font-size: 0.85rem;
+	color: #999;
+	margin-left: 0;
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.item_price {
+	color: #FF6B35;
+	font-weight: 700;
+	font-size: 1.2rem;
+	display: flex;
+	align-items: baseline;
+}
+
+.order_item {
+	background: white;
+	margin-top: 7pt;
+	margin-left: 10pt;
+	margin-right: 10pt;
+	padding-left: 4pt;
+	padding-right: 15pt;
+	padding-bottom: 7pt;
+	box-shadow: 0 1px 5px #60262626;
+}
+
+.item_item2 {
+	display: flex;
+	align-items: baseline;
+}
+
+.item_item2 div:nth-child(2) {
+	flex-grow: 1;
+	height:1px;
+	width: 100px;
+	border-bottom: 2px dotted #333;
+}

@@ -20,6 +20,20 @@ def add_url_rules(app):
     app.add_url_rule("/my_orders/getActiveOrders_ofShop", view_func=getActiveOrders_ofShop)
     app.add_url_rule("/my_orders/makeit/<int:order_id>", view_func=makeit)
 
+# 显示我的订单 - 商家显示店铺订单/顾客显示个人订单
+def my_orders_page():
+    if not shared.check_logined_and_role():
+        return "{\"errorMsg\":\"请登录\"}", 400
+    role = session.get("role","")
+    isShopper = (role == "shopper")
+    username = session.get("username","")
+    shop_id=-1
+    if isShopper:
+        r = db.do_query("SELECT shop_id FROM user_shop WHERE username=%s",(username,))
+        if r and len(r) > 0:
+            shop_id = r[0][0]
+    return render_template("my_orders.html",isShopper=isShopper,username=username,shop_id=shop_id)
+
 # 创建一个已支付、制作中的订单
 def create_payed_making_order(order_content,customer_username,belong_shop,total_amount):
     try:
@@ -36,19 +50,24 @@ def create_payed_making_order(order_content,customer_username,belong_shop,total_
     finally:
         if conn: conn.close()
 
-# 显示我的订单 - 商家显示店铺订单/顾客显示个人订单
-def my_orders_page():
-    if not shared.check_logined_and_role():
-        return "{\"errorMsg\":\"请登录\"}", 400
-    role = session.get("role","")
-    isShopper = (role == "shopper")
-    username = session.get("username","")
-    shop_id=-1
-    if isShopper:
-        r = db.do_query("SELECT shop_id FROM user_shop WHERE username=%s",(username,))
-        if r and len(r) > 0:
-            shop_id = r[0][0]
-    return render_template("my_orders.html",isShopper=isShopper,username=username,shop_id=shop_id)
+def make_one_order_response_json(cursor,rr):
+    r3 = {}
+    # rr结构: (order_content, total_amount, status, order_id, create_time)
+    r3["status"] = rr[2]
+    r3["total_amount"] = float(rr[1])
+    r3["order_id"] = rr[3]
+    content = json.loads(rr[0])
+    content2 = []
+    for item_id, num in content.items():
+        item_id = int(item_id)
+        cursor.execute("SELECT item_name FROM item WHERE item_id=%s", (item_id,))
+        result = cursor.fetchall()
+        if len(result) > 0:
+            item_name = result[0][0]
+            item = {"item_name": item_name, "num": int(num)}
+            content2.append(item)
+    r3["content"] = content2
+    return r3
 
 def getAllOrders_ofUser():
     if not shared.check_logined_and_role("customer"):  # 验证登录：顾客
@@ -105,25 +124,6 @@ def getActiveOrders_ofShop():
         if conn: conn.close()
 
     return jsonify(arr)
-
-def make_one_order_response_json(cursor,rr):
-    r3 = {}
-    # rr结构: (order_content, total_amount, status, order_id, create_time)
-    r3["status"] = rr[2]
-    r3["total_amount"] = float(rr[1])
-    r3["order_id"] = rr[3]
-    content = json.loads(rr[0])
-    content2 = []
-    for item_id, num in content.items():
-        item_id = int(item_id)
-        cursor.execute("SELECT item_name FROM item WHERE item_id=%s", (item_id,))
-        result = cursor.fetchall()
-        if len(result) > 0:
-            item_name = result[0][0]
-            item = {"item_name": item_name, "num": int(num)}
-            content2.append(item)
-    r3["content"] = content2
-    return r3
 
 def makeit(order_id):
     if not shared.check_logined_and_role("shopper"):  # 验证登录：顾客

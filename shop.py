@@ -78,6 +78,13 @@ def check_shop_belong(shop_id):
         return False
     return r[0][0] == shop_id
 
+# 检查一个商品是否属于某个店铺
+def check_item_belong(shop_id,item_id):
+    r = db.do_query("SELECT * FROM shop_items WHERE shop_id=%s AND item_id=%s",(shop_id,item_id))
+    if len(r) == 0:
+        return False
+    return True
+
 # 获取店铺最新的items列表
 def get_shop_items(shop_id):
     try:
@@ -92,13 +99,6 @@ def get_shop_items(shop_id):
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
-
-# 检查一个商品是否属于某个店铺
-def check_item_belong(shop_id,item_id):
-    r = db.do_query("SELECT * FROM shop_items WHERE shop_id=%s AND item_id=%s",(shop_id,item_id))
-    if len(r) == 0:
-        return False
-    return True
 
 # 给店铺添加一个新餐品
 def add_shop_item(shop_id):
@@ -139,6 +139,35 @@ def add_shop_item(shop_id):
         if cursor: cursor.close()
         if conn: conn.close()
 
+# 修改商品价格
+def change_item_price(shop_id):
+    if not shared.check_logined_and_role("shopper"): #验证权限
+        return "{\"errorMsg\":\"请登录\"}",400
+    if not check_shop_belong(shop_id): #检查用户是否有shopper权限
+        return jsonify({"errorMsg": "异常操作"}), 403
+    item_id = request.args.get("item_id", None)
+    new_price = request.args.get("price",None)
+    if item_id is None or new_price is None:
+        return jsonify({"errorMsg": "无效参数"}), 403
+
+    # 检查这个商品是否归属于这个shop
+    if not check_item_belong(shop_id,item_id):
+        return jsonify({"errorMsg": "您不能修改别家店铺的商品价格！"}), 403
+
+    try:
+        conn = db.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE item SET price=GREATEST(0,%s) WHERE item_id=%s",(new_price,item_id))
+        conn.commit()
+        return "",200
+    except Exception as e:
+        if conn: conn.rollback()
+        traceback.print_exc()
+        return jsonify({"errorMsg": "数据库操作失败"}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
 # 修改一个或多个商品的数量add/sub
 def change_item_rest_num(shop_id):
 
@@ -161,35 +190,6 @@ def change_item_rest_num(shop_id):
                            (addNum,shop_id,item_id))
         conn.commit() #提交
         return "",200 #成功
-    except Exception as e:
-        if conn: conn.rollback()
-        traceback.print_exc()
-        return jsonify({"errorMsg": "数据库操作失败"}), 500
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
-
-# 修改商品价格
-def change_item_price(shop_id):
-    if not shared.check_logined_and_role("shopper"): #验证权限
-        return "{\"errorMsg\":\"请登录\"}",400
-    if not check_shop_belong(shop_id): #检查用户是否有shopper权限
-        return jsonify({"errorMsg": "异常操作"}), 403
-    item_id = request.args.get("item_id", None)
-    new_price = request.args.get("price",None)
-    if item_id is None or new_price is None:
-        return jsonify({"errorMsg": "无效参数"}), 403
-
-    # 检查这个商品是否归属于这个shop
-    if not check_item_belong(shop_id,item_id):
-        return jsonify({"errorMsg": "您不能修改别家店铺的商品价格！"}), 403
-
-    try:
-        conn = db.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE item SET price=GREATEST(0,%s) WHERE item_id=%s",(new_price,item_id))
-        conn.commit()
-        return "",200
     except Exception as e:
         if conn: conn.rollback()
         traceback.print_exc()
@@ -222,33 +222,6 @@ def delete_shop_item(shop_id):
         conn.commit()
     except Exception as e:
         if conn: conn.rollback()
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
-
-# 修改店铺名称
-def change_shop_name(shop_id):
-    if not shared.check_logined_and_role("shopper"): #验证权限
-        return jsonify({"errorMsg":"请登录"}),400
-    if not check_shop_belong(shop_id): #检查用户是否有shopper权限
-        return jsonify({"errorMsg": "异常操作"}), 403
-    
-    new_name = request.form.get("shop_name", None)
-    if not new_name or len(new_name.strip()) == 0:
-        return jsonify({"errorMsg": "店铺名称不能为空"}), 400
-    if len(new_name) > 50:
-        return jsonify({"errorMsg": "店铺名称过长"}), 400
-    
-    try:
-        conn = db.get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE shop SET shop_name=%s WHERE shop_id=%s",(new_name.strip(),shop_id))
-        conn.commit()
-        return jsonify({"msg":"修改成功"}),200
-    except Exception as e:
-        if conn: conn.rollback()
-        traceback.print_exc()
-        return jsonify({"errorMsg": "数据库操作失败"}), 500
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
@@ -303,6 +276,33 @@ def change_item_image(shop_id):
         
         conn.commit()
         return jsonify({"msg":"修改成功","image_url":image_url}),200
+    except Exception as e:
+        if conn: conn.rollback()
+        traceback.print_exc()
+        return jsonify({"errorMsg": "数据库操作失败"}), 500
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# 修改店铺名称
+def change_shop_name(shop_id):
+    if not shared.check_logined_and_role("shopper"): #验证权限
+        return jsonify({"errorMsg":"请登录"}),400
+    if not check_shop_belong(shop_id): #检查用户是否有shopper权限
+        return jsonify({"errorMsg": "异常操作"}), 403
+    
+    new_name = request.form.get("shop_name", None)
+    if not new_name or len(new_name.strip()) == 0:
+        return jsonify({"errorMsg": "店铺名称不能为空"}), 400
+    if len(new_name) > 50:
+        return jsonify({"errorMsg": "店铺名称过长"}), 400
+    
+    try:
+        conn = db.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE shop SET shop_name=%s WHERE shop_id=%s",(new_name.strip(),shop_id))
+        conn.commit()
+        return jsonify({"msg":"修改成功"}),200
     except Exception as e:
         if conn: conn.rollback()
         traceback.print_exc()

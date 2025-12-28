@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+	<title>店铺列表</title>
+	<link rel="stylesheet" type="text/css" href="/static/base.css">
+	<link rel="stylesheet" type="text/css" href="/static/shop.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		body {
+			background: #F5F5F5;
+		}
+		.scrollview {
+			background: #F5F5F5;
+			padding: 0.5rem 0;
+		}
+		.shopitem {
+			display: flex;
+			background: white;
+			margin: 0.75rem 0.75rem;
+			padding: 1rem;
+			border-radius: 12px;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			cursor: pointer;
+			position: relative;
+			overflow: hidden;
+		}
+		.shopitem::before {
+			content: '';
+			position: absolute;
+			left: 0;
+			top: 0;
+			width: 4px;
+			height: 100%;
+			background: linear-gradient(180deg, #FF6B35 0%, #F7931E 100%);
+			opacity: 0;
+			transition: opacity 0.3s;
+		}
+		.shopitem:hover {
+			transform: translateY(-4px);
+			box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+		}
+		.shopitem:hover::before {
+			opacity: 1;
+		}
+		.shopitem:active {
+			transform: translateY(-2px);
+		}
+		
+		.shop-icon {
+			width: 4.5rem;
+			height: 4.5rem;
+			min-width: 4.5rem;
+			background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
+			border-radius: 10px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 2rem;
+			margin-right: 1rem;
+			box-shadow: 0 -3px 12px rgba(255, 107, 53, 0.3);
+		}
+		
+		.shop-info {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			min-width: 0;
+		}
+		
+		.shop-header {
+			margin-bottom: 0.5rem;
+		}
+		
+		.shopname {
+			float: left;
+			font-size: 1.15rem;
+			font-weight: 600;
+			color: #333;
+			margin: 0;
+			flex: 1;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		
+		.shop-status-badge {
+			float: right;
+			padding: 0.25rem 0.75rem;
+			border-radius: 12px;
+			font-size: 0.75rem;
+			font-weight: 500;
+			white-space: nowrap;
+			margin-left: 0.5rem;
+		}
+		.status-open {
+			background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+			color: white;
+			box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+		}
+		.status-closed {
+			background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+			color: white;
+			box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
+		}
+		
+		.shop_pos {
+			font-size: 0.9rem;
+			color: #666;
+			display: flex;
+			align-items: center;
+			gap: 0.4rem;
+			margin-top: 0.3rem;
+		}
+		.shop_pos::before {
+			content: "📍";
+			font-size: 0.85rem;
+		}
+		
+		.shop-footer {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 0.5rem;
+			padding-top: 0.5rem;
+			border-top: 1px solid #F0F0F0;
+		}
+		
+		.shop-tags {
+			display: flex;
+			gap: 0.5rem;
+			flex-wrap: wrap;
+		}
+		
+		.shop-tag {
+			font-size: 0.75rem;
+			color: #999;
+			background: #F5F5F5;
+			padding: 0.2rem 0.6rem;
+			border-radius: 8px;
+		}
+		
+		.shop-arrow {
+			color: #CCC;
+			font-size: 1.2rem;
+			margin-left: 0.5rem;
+		}
+		
+		.empty-shoplist {
+			text-align: center;
+			padding: 4rem 1rem;
+			color: #999;
+		}
+		.empty-shoplist-icon {
+			font-size: 5rem;
+			margin-bottom: 1rem;
+			opacity: 0.5;
+		}
+		.empty-shoplist-text {
+			font-size: 1rem;
+			color: #666;
+		}
+		
+		.topBar {
+			background: white;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+		}
+		
+		.topBar .title {
+			color: #333;
+		}
+	</style>
+</head>
+<body>
+	<div class="mobile_page">
+		<div class="topBar">
+			<div></div>
+			<div class="title">🏪 店铺列表 <span style="font-size:0.85rem;color:#999;font-weight:normal;">({{shoplist|length}})</span></div>
+			<div></div>
+		</div>
+		<div class="scrollview">
+		{% if shoplist|length == 0 %}
+			<div class="empty-shoplist">
+				<div class="empty-shoplist-icon">🏬</div>
+				<div class="empty-shoplist-text">暂无店铺</div>
+			</div>
+		{% else %}
+			{% for shop in shoplist %}
+				<div class="shopitem" onclick="window.location.href='/shop/{{shop.shop_id}}'">
+					<div class="shop-icon">🏪</div>
+					<div class="shop-info">
+						<div class="shop-header">
+							<div class="shopname" title="{{shop.shop_name}}">{{shop.shop_name}}</div>
+							{% if shop.status == normal_status %}
+								<span class="shop-status-badge status-open">🟢 营业中</span>
+							{% elif shop.status == reserve_status %}
+								<span class="shop-status-badge status-closed">🟡 暂停营业</span>
+							{% endif %}
+						</div>
+						<div class="shop_pos">{{shop.shop_position}}</div>
+						<div class="shop-footer">
+							<div class="shop-tags">
+								<span class="shop-tag">📍 附近</span>
+								<span class="shop-tag">🍽️ 美食</span>
+							</div>
+							<span class="shop-arrow">›</span>
+						</div>
+					</div>
+				</div>
+			{% endfor %}
+		{% endif %}
+		</div>
+	</div>
+</body>
+</html>

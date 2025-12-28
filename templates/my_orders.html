@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+
+<html lang="zh-cn">
+<head>
+	{%if isShopper %}
+	<title>店铺订单</title>
+	{% else %}
+	<title>我的订单</title>
+	{% endif %}
+	<link rel="stylesheet" type="text/css" href="/static/base.css">
+	<link rel="stylesheet" type="text/css" href="/static/shop.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+	<div class="mobile_page">
+		<div class="topBar">
+			<img src="/static/image/back_yellow.png" style="padding-left:8pt;" class="img_button" onclick="window.history.back()">
+			{%if isShopper %}
+			<div class="title">店铺订单</div>
+			{% else %}
+			<div class="title">我的订单</div>
+			{% endif %}
+			<div></div>
+		</div>
+		<div id="order_list" class="scrollview">
+		
+		</div>
+		{%if isShopper %}
+		<div class="bottomBar">
+			<button class="link_button">我的店铺</button>
+			<button class="accent_button" onclick="addItem()">查看历史订单</button>
+		</div>
+		{% endif %}
+	</div>
+</body>
+
+<script>
+	const order_list = document.getElementById("order_list");
+	// 订单Div，没有则创建(总是从尾部添加)
+	function createOrderDiv_ifNotExist(order) {
+		const order_id = order.order_id;
+		if( document.getElementById(`${order_id}_div`) == null) {
+			new_div = document.createElement("div");
+			order_list.appendChild(new_div);
+			new_div.id = `${order_id}_div`;
+			new_div.className = "order_item"
+			
+			let content_text = "";
+			for(const item of order.content) {
+				content_text += `&nbsp;&nbsp;${item.item_name}<span class='multi_suffix'>×${item.num}</span>`
+				content_text += "<br>"
+			}
+			
+			new_div.innerHTML = 
+			`
+			<span class='important_text'>订单</span>
+			<span id="${order_id}_order_id" class='tip_text'>订单号: ${order.order_id}</span>
+			<span id="${order_id}_label" class='bluebox_text'>制作中</span>
+			<div style="background:grey;height:0.3pt;width:100%;margin-top:3pt;margin-bottom:3pt;"></div>
+			<span id="${order_id}_content" style='color:#B86B79'>
+				${content_text}
+			</span>
+			<div style='background:grey;height:0.3pt;width:100%;margin-top:3pt;margin-bottom:3pt;'></div>
+			<span class="tip_text">付款额：${order.total_amount}元</span>
+			{% if isShopper %}
+			<button id="${order_id}_button_makeit" class="light_button" 
+				onclick="do_order_maked(${order_id});">做好了！</button>
+			{% endif %}
+			`
+		}
+	}
+	
+	// 宣布order_id订单已经做好了
+	function do_order_maked(order_id) {
+		const xhr = new XMLHttpRequest();
+		xhr.open("GET","/my_orders/makeit/"+order_id,true)
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				const json = JSON.parse(xhr.responseText);
+				if (xhr.status == 200) {
+					let label = document.getElementById(`${order_id}_label`);
+					label.className = 'greenbox_text'
+					label.innerHTML = "待取餐 取餐号：A"+order_id
+				} else {
+					alert("操作失败");
+				}
+			}
+		}
+		xhr.send()
+	}
+	
+	function updateOrder(order) {
+		let label = document.getElementById(`${order.order_id}_label`);
+		if(order.status == 0) {
+			label.className = 'bluebox_text'
+			label.innerHTML = "制作中"
+			{% if isShopper %}
+				
+			{% endif %}
+		} else if(order.status == 1) {
+			label.className = 'greenbox_text'
+			label.innerHTML = "待取餐 取餐号：A"+order.order_id
+		} else if(order.status == 2) {
+			label.className = 'yellowbox_text'
+			label.innerHTML = "已取餐"
+		}
+	}
+	
+	
+	function requestActiveOrders() {
+		const xhr = new XMLHttpRequest();
+		{% if isShopper %}
+		xhr.open("GET","/my_orders/getActiveOrders_ofShop?shop_id={{shop_id}}",true)
+		{% else %}
+		xhr.open("GET","/my_orders/getAllOrders_ofUser?username={{username}}",true)
+		{% endif %}
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === XMLHttpRequest.DONE) {
+				const json = JSON.parse(xhr.responseText);
+				if (xhr.status == 200) {
+					for(const order of json) {
+						createOrderDiv_ifNotExist(order);
+						updateOrder(order);
+					}
+				}
+			}
+		}
+		xhr.send()
+	}
+	
+	setInterval(requestActiveOrders,5000) // 5秒更新一次活跃订单(历史订单本页面不请求)
+	
+	requestActiveOrders() //立即获取数据
+	
+</script>
+</html>

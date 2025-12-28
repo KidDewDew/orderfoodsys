@@ -15,6 +15,9 @@ import pay
 
 # 在这里添加url_rule到app
 def add_url_rules(app):
+    app.add_url_rule("/shop/<int:shop_id>/deleteItem", view_func=delete_shop_item)
+    app.add_url_rule("/shop/<int:shop_id>/changeShopName", view_func=change_shop_name, methods=["POST"])
+    app.add_url_rule("/shop/<int:shop_id>/changeItemImage", view_func=change_item_image, methods=["POST"])
     app.add_url_rule("/shoplist", view_func=shoplist_page)
     app.add_url_rule("/shop/<int:shop_id>", view_func=shop_page)
     app.add_url_rule("/shop/<int:shop_id>/create_pay",view_func=pay_order,methods=["POST"])
@@ -23,24 +26,6 @@ def add_url_rules(app):
     app.add_url_rule("/shop/<int:shop_id>/add_item", view_func=add_shop_item, methods=["POST"])
     app.add_url_rule("/shop/<int:shop_id>/changeRestNum",view_func=change_item_rest_num,methods=["POST"])
     app.add_url_rule("/shop/<int:shop_id>/changeItemPrice",view_func=change_item_price)
-    app.add_url_rule("/shop/<int:shop_id>/deleteItem", view_func=delete_shop_item)
-    app.add_url_rule("/shop/<int:shop_id>/changeShopName", view_func=change_shop_name, methods=["POST"])
-    app.add_url_rule("/shop/<int:shop_id>/changeItemImage", view_func=change_item_image, methods=["POST"])
-
-def shoplist_page():
-    try:
-        conn = db.get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(f"SELECT shop_id,shop_name,shop_position,status FROM shop")
-        shoplist = cursor.fetchall()
-        return render_template("shoplist.html",
-                               normal_status=shared.ShopStatus_Normal,reserve_status=shared.ShopStatus_Reserve,
-                               shoplist=shoplist)
-    except Exception as e:
-        return e
-    finally:
-        if cursor: cursor.close()
-        if conn: conn.close()
 
 def shop_page(shop_id):
     # 需要判断一下这个店是不是属于这个用户
@@ -70,6 +55,29 @@ def shop_page(shop_id):
         if cursor: cursor.close()
         if conn: conn.close()
 
+def shoplist_page():
+    try:
+        conn = db.get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(f"SELECT shop_id,shop_name,shop_position,status FROM shop")
+        shoplist = cursor.fetchall()
+        return render_template("shoplist.html",
+                               normal_status=shared.ShopStatus_Normal,reserve_status=shared.ShopStatus_Reserve,
+                               shoplist=shoplist)
+    except Exception as e:
+        return e
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# 检查某个店铺是否属于当前用户
+def check_shop_belong(shop_id):
+    username = session.get('username')
+    r = db.do_query("SELECT shop_id FROM user_shop WHERE username=%s LIMIT 1",(username,))
+    if len(r) == 0:
+        return False
+    return r[0][0] == shop_id
+
 # 获取店铺最新的items列表
 def get_shop_items(shop_id):
     try:
@@ -84,14 +92,6 @@ def get_shop_items(shop_id):
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
-
-# 检查某个店铺是否属于当前用户
-def check_shop_belong(shop_id):
-    username = session.get('username')
-    r = db.do_query("SELECT shop_id FROM user_shop WHERE username=%s LIMIT 1",(username,))
-    if len(r) == 0:
-        return False
-    return r[0][0] == shop_id
 
 # 检查一个商品是否属于某个店铺
 def check_item_belong(shop_id,item_id):

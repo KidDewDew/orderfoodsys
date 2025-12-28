@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+	<title>店铺不存在</title>
+	<link rel="stylesheet" type="text/css" href="/static/base.css">
+	<link rel="stylesheet" type="text/css" href="/static/shop.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		.error-container {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			min-height: 100vh;
+			background: linear-gradient(135deg, #F0EED3 0%, #FFFEF1 100%);
+			padding: 2rem;
+		}
+		.error-icon {
+			font-size: 6rem;
+			margin-bottom: 1rem;
+			animation: float 3s ease-in-out infinite;
+		}
+		@keyframes float {
+			0%, 100% { transform: translateY(0px); }
+			50% { transform: translateY(-20px); }
+		}
+		.error-title {
+			font-size: 2rem;
+			font-weight: bold;
+			color: #6E5B1D;
+			margin-bottom: 1rem;
+			text-align: center;
+		}
+		.error-message {
+			font-size: 1.1rem;
+			color: #8F8F8F;
+			margin-bottom: 2rem;
+			text-align: center;
+			max-width: 400px;
+			line-height: 1.6;
+		}
+		.error-actions {
+			display: flex;
+			gap: 1rem;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+		.error-card {
+			background: white;
+			padding: 2rem;
+			border-radius: 12px;
+			box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+			max-width: 500px;
+			text-align: center;
+		}
+		.btn-home {
+			padding: 0.8rem 2rem;
+			font-size: 1rem;
+			background: var(--accent);
+			color: white;
+			border: none;
+			border-radius: 8px;
+			cursor: pointer;
+			text-decoration: none;
+			display: inline-block;
+			transition: all 0.3s;
+		}
+		.btn-home:hover {
+			background: #E0B482;
+			transform: translateY(-2px);
+			box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+		}
+	</style>
+</head>
+<body>
+	<div class="error-container">
+		<div class="error-card">
+			<div class="error-icon">🏪</div>
+			<div class="error-title">店铺不存在</div>
+			<div class="error-message">
+				抱歉，您访问的店铺不存在或已被删除。<br>
+				请检查链接是否正确，或返回店铺列表重新选择。
+			</div>
+			<div class="error-actions">
+				<a href="/shoplist" class="btn-home">返回店铺列表</a>
+				<a href="/" class="btn-home" style="background: var(--border);">返回首页</a>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
+
